@@ -1,0 +1,9 @@
+{
+    "name": "Project K5",
+    "version": "0.0.1",
+    "description": "Collaboration web app",
+    "dependencies": {
+        "express": "^4.16.4",
+        "socket.io": "^2.2.0"
+    }
+}
