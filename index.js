@@ -1,15 +1,16 @@
 //import './app.css';
-
+const traceLevel = 7;
 var path = require('path');
 var express = require('express');
 
-var app= express();
+var app = express();
 app.use('/styles', express.static('public/css'));
 app.use('/scripts', express.static('public/js'));
-app.use('/html', express.static('public/js'));
+//app.use('/html', express.static('public/html'));
 console.log(__dirname);
 
 var fs = require('fs');
+var tools = require('./tools.js');
 
 var privateKey = fs.readFileSync('key.pem').toString();
 var certificate = fs.readFileSync('cert.pem').toString();
@@ -25,6 +26,10 @@ app.get('/', function(req, res){
     res.sendFile(`${__dirname}/index.html` );
 });
 
+app.get('/space', function(req,res){
+    tools.doTrace(req,5);
+    res.sendFile(`${__dirname}/html/space.html`);
+});
 /*
 app.get('/chat', function(req, res){
     res.sendFile(`${__dirname}/chat.html` );
@@ -50,11 +55,11 @@ io.emit('some event', {for: 'evereyone'});
 */
 
 https.listen(3001, function(){
-    console.log('listening on port 3001');
+    tools.doTrace('listening on port 3001',3);
 });
 
-console.log(`K5 started`);
-
+console.log(``);
+tools.doTrace('K5 started',3);
 
 
 /*
