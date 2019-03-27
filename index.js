@@ -1,5 +1,11 @@
+'use strict';
 //import './app.css';
-const traceLevel = 7;
+const appConfig = {
+    traceLevel: 5
+};
+
+const _tl = appConfig.traceLevel;
+
 var path = require('path');
 var express = require('express');
 
@@ -27,43 +33,47 @@ app.get('/', function(req, res){
 });
 
 app.get('/space', function(req,res){
-    tools.doTrace(req,5);
+    tools.doTrace(`Request to /space recived, response send`, 4, _tl);
+    //tools.doTrace(req, 6, _tl);
     res.sendFile(`${__dirname}/html/space.html`);
 });
-/*
-app.get('/chat', function(req, res){
-    res.sendFile(`${__dirname}/chat.html` );
+
+
+
+
+//io.emit('some event', {for: 'evereyone'});
+
+
+https.listen(3001, function(){
+    tools.doTrace('listening on port 3001',3);
 });
 
-app.get('/vchat', (req,res) => {
-    console.log(req);
-    res.sendFile(`${__dirname}/vchat.html` );
-});
-*/
+tools.doTrace('K5 started',3, _tl);
 
-/*
 io.on('connection', function(socket){
+
+    tools.doTrace(`User connected`, 3 , _tl);
+    tools.doTrace(`Socket ID = ${socket.id}`, 4, _tl);
+
+    socket.on('disconnect', function(){
+        tools.doTrace(`User disconnected`, 3 , _tl);
+        tools.doTrace(`Socket ID = ${socket.id}`, 4, _tl);
+    });
+
+    socket.on('_sigEnterSpace', (roomId, userNick) => {
+        tools.doTrace(`User "${userNick}" has entered space "${roomId}"`, 3, _tl)
+        socket.join(roomId);
+        var matesInSpace = io.sockets.adapter.rooms[socket.id].length;   
+        //var matesAmount = matesInSpace ? Object.keys(matesInSpace.sockets).length : 0;
+        //console.log(io.sockets.adapter.rooms[roomId]);
+        tools.doTrace(`There are ${matesInSpace} users in the space "${roomId}"`, 4, _tl)
+    })
 
     socket.on('_sigMessage', (msg)=>{
         console.log(`_sigMessage ${msg.type}`);
         io.emit('_sigMessage', msg);
     });
 
+    
 });
 
-io.emit('some event', {for: 'evereyone'});
-*/
-
-https.listen(3001, function(){
-    tools.doTrace('listening on port 3001',3);
-});
-
-console.log(``);
-tools.doTrace('K5 started',3);
-
-
-/*
-http.listen(3000, function(){
-    console.log('listening on port 3000');
-})
-*/
