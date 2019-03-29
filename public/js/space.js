@@ -22,6 +22,8 @@ if (userNick==='') {
 }
 let isOwner;
 let mates = new Array();
+
+
 //Socket events handlers:
 socket.on('_sigJoined', (user) => {
     if (user.isOwner){

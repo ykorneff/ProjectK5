@@ -1,13 +1,39 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Project K5</title>    
+        <title>Project K5</title>   
+        <link rel="stylesheet" href="../styles/app.css" type="text/css"/> 
         <script src="/socket.io/socket.io.js"></script>
         <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
         <!--<script async src="scripts/_tools.js"></script>-->
         <script src="/scripts/space.js"></script>
+        <script async src="/scripts/renderspace.js"></script>
     </head>
     <body>
-        <p>Space</p>
+        <p id="pWelcomTitle"></p>
+        <nav>
+            <ul>
+                <li><a href="javascript:void(0)" onclick="console.log('Text chat');">Text chat</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('Video chat');">Video chat</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('Share desctop');">Share desctop</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('Share File');">Share file</a></li>
+                <li style="float:right"><a href="javascript:void(0)" onclick="console.log('Settings');">Settings</a></li>
+            </ul>
+        </nav>
+        <aside>
+            <label>Users in the room:</label>
+            <ul>
+                <li><a href="javascript:void(0)" onclick="console.log('--1');">User 1</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('--2');">User 2</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('--3');">User 3</a></li>
+            </ul>
+        </aside>
+        <section>
+            Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text 
+        </section>
+        
+        <footer >
+            footer 
+        <footer>
     </body>
 </html>
