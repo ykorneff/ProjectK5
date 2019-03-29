@@ -27,6 +27,23 @@ var credentials = {
 var https = require('https').Server(credentials,app);
 var io = require('socket.io')(https);
 
+/*
+var user = {
+    id: '',
+    nick: '',
+    room: '',
+    isOwner: false
+}
+*/
+
+var room = {
+    id: '',
+    mates: 0
+}
+
+var rooms = new Array();
+
+var users = new Array();
 
 app.get('/', function(req, res){
     res.sendFile(`${__dirname}/index.html` );
@@ -60,14 +77,32 @@ io.on('connection', function(socket){
         tools.doTrace(`Socket ID = ${socket.id}`, 4, _tl);
     });
 
-    socket.on('_sigEnterSpace', (roomId, userNick) => {
-        tools.doTrace(`User "${userNick}" has entered space "${roomId}"`, 3, _tl)
+    socket.on('_sigEnterRoom', (roomId, userNick) => {
+        tools.doTrace(`User "${userNick}" has entered room "${roomId}"`, 3, _tl)
         socket.join(roomId);
-        var matesInSpace = io.sockets.adapter.rooms[socket.id].length;   
-        //var matesAmount = matesInSpace ? Object.keys(matesInSpace.sockets).length : 0;
-        //console.log(io.sockets.adapter.rooms[roomId]);
-        tools.doTrace(`There are ${matesInSpace} users in the space "${roomId}"`, 4, _tl)
-    })
+        let user = {
+            id: '',
+            nick: '',
+            room: '',
+            isOwner: false
+        };
+        user.id=socket.id;
+        user.nick = userNick;
+        user.room = roomId;
+        var matesInRoom = io.sockets.adapter.rooms[roomId].length;   
+//        console.log(io.sockets.adapter.rooms[roomId].sockets);
+        tools.doTrace(`There are ${matesInRoom} users in the room "${roomId}"`, 4, _tl);
+        if (matesInRoom === 1) {
+            user.isOwner = true;
+        }
+        //users.push(user);
+        room.id = roomId;
+        room.mates = matesInRoom;
+        //rooms.push(room);
+        //socket.emit('_sigJoined', user);
+        io.in(roomId).emit('_sigJoined',user);
+        
+    });
 
     socket.on('_sigMessage', (msg)=>{
         console.log(`_sigMessage ${msg.type}`);
