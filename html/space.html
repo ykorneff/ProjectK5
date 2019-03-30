@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Project K5</title>   
+        <title id="spaceTitleId">Project K5</title>   
         <link rel="stylesheet" href="../styles/app.css" type="text/css"/> 
         <script src="/socket.io/socket.io.js"></script>
         <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
@@ -10,11 +10,11 @@
         <script async src="/scripts/renderspace.js"></script>
     </head>
     <body>
-        <p id="pWelcomTitle"></p>
+        <header></header>
         <nav>
             <ul>
                 <li><a href="javascript:void(0)" onclick="console.log('Text chat');">Text chat</a></li>
-                <li><a href="javascript:void(0)" onclick="console.log('Video chat');">Video chat</a></li>
+                <li><a href="javascript:void(0)" onclick="console.log('Video chat'); videoTest();">Video chat</a></li>
                 <li><a href="javascript:void(0)" onclick="console.log('Share desctop');">Share desctop</a></li>
                 <li><a href="javascript:void(0)" onclick="console.log('Share File');">Share file</a></li>
                 <li style="float:right"><a href="javascript:void(0)" onclick="console.log('Settings');">Settings</a></li>
@@ -29,11 +29,37 @@
             </ul>
         </aside>
         <section>
-            Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text Some section text 
+            <article class="videoElements">
+                <video id="localVideo" autoplay muted></video>
+                <video id="video1" autoplay muted></video>
+                <video id="video2" autoplay muted></video>
+            </article>
+            <article class="textChat">
+                <p class="local">Mesfksdjfkl ajdfjasdfjasdjflaksdkjfaklsjd asdfklj asdfj kfjwejflkjdflasdjf; ladjf;lajsdf aj;flkjasd;fklj a;lfjasl jf;lasdjf lajdfljafjqwiofjoqifsjdf sdklfjaskldfj asdlkfjslkfj adlfkj asdkfjaslkdfj asdjf sage1</p>
+                <p>Messlskdjf asdjfaklsdjf ajfjfqjwefqwefoj qfjfjqoefj qejfwejf djf  askdfh akjdhfl hfqufh84hf uqhf auhfqhf asdfhoasdhf afhla hfakdfh adfh ladhfla jhflaksdhf akfh lqkhf lasdhflkashdfl asdhflk hasldkfh laksjdhf lahf83hf qwefha lksjdhf laksdhfl sjfgas dalsdfj adfpafj;lkjp age2</p>
+                <p class="local">Message3</p>
+                <p class="local">Message4</p>
+                <p>Message5</p>
+                <p>Message6</p>
+                <p class="local">Message6</p>
+                <p>Message</p>
+                <p class="local">Message5</p>
+                <p>Message5</p>
+                <p>Message5</p>
+                <p class="local">Message5</p>
+                <p>Message5</p>
+                <p>Message5</p>
+                <p class="local">Message5</p>
+                <p class="local">Message5</p>
+                <p class="local">Message5</p>
+                <p>Message5</p>
+            </article>
+            <article class="sharedFiles">
+                Some files
+            </article>
         </section>
-        
-        <footer >
-            footer 
         <footer>
+            Project K5. Version 0.0.1
+        </footer>
     </body>
 </html>
