@@ -118,28 +118,70 @@ section article.videoElements {
 section video {
     width: auto;
     height: calc(100% - 5px);
-    display: inline;
+    /*display: inline;*/
 }
 
 section article.textChat {
-    background-color: yellow;
+    background-color: white;
     height: 45%;
     overflow-y: auto;
     scroll-behavior: smooth;
 }
 
-section article.textChat p {
-    color: blue;
+section article.textChat p{
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    font-size: 11pt;
+}
+
+section article.textChat p.remoteLabel {
+    color: #363636;
+    font-weight: bold;
+    font-style: italic;
+    padding: 0px 40% 0 5px
+}
+
+section article.textChat p.localLabel {
+    color: black;
+    font-weight: bold;
+    font-style: italic;
+    text-align: right;
+    padding: 0px 5px 0 60%;
+}
+
+section article.textChat p.remote {
+    color: #363636;
+    padding: 0px 40% 0 5px
 }
 
 section article.textChat p.local {
     text-align: right;
     color: black;
+    padding: 0px 5px 0 40%;
 }
 
-section article.sharedFiles{
-    background-color: orangered;
+section article.textInput{
     height: 15%;
+}
+
+section article.textInput textarea{
+    
+    width: 90%;
+    height: 100%;
+    resize: none;
+    border: 0 none #FFF;
+    background-color: white;
+    box-sizing: border-box;
+}
+
+section article.textInput textarea:focus{
+    border: 0 none #FFF;
+    box-sizing: border-box;
+}
+
+section article.textInput button{
+    float: right;
+    width:10%;
+    height: 100%;
 }
 
 footer {

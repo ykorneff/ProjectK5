@@ -8,6 +8,9 @@ function videoTest(){
         document.getElementById('localVideo').srcObject=stream;
         document.getElementById('video1').srcObject=stream;
         document.getElementById('video2').srcObject=stream;
+        document.getElementById('video3').srcObject=stream;
+        document.getElementById('video4').srcObject=stream;
+ 
     })
     .catch ((err)=>{
         console.log(err);
