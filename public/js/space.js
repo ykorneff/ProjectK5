@@ -23,6 +23,17 @@ if (userNick==='') {
 let isOwner;
 let mates = new Array();
 
+//Web elements handlers:
+function btnSendOnClick(){
+    let textToSendElement = document.getElementById('textToSend'); 
+    let text = textToSendElement.value;
+    if (text!=='') {
+        addChatMessage(text, userNick, timeStampShort(), 'local');
+        text = '';
+        textToSendElement.value = '';
+    }
+}
+//End web elements handlers
 
 //Socket events handlers:
 socket.on('_sigJoined', (user) => {
@@ -36,17 +47,25 @@ socket.on('_sigJoined', (user) => {
     console.log(`In room:`);
     console.log(mates);
 });
+//End socket events handlers:
 
 socket.emit('_sigEnterRoom', roomId, userNick);
 
 
-/*
+//Tools:
 function timeStamp (){
     let now = new Date(Date.now());
     return `<${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}>`;
 }
 
-function doTrace (message, level, traceLevel){
+function timeStampShort (){
+    let now = new Date(Date.now());
+    return `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+}
+
+//End tools
+
+/*function doTrace (message, level, traceLevel){
     if (level <= traceLevel) {
        if (typeof message === 'object'){
             console.log(`${timeStamp()}${levels.get(level)}::`);
@@ -58,5 +77,7 @@ function doTrace (message, level, traceLevel){
     
 }
 */
+
+
 
 //doTrace(`Client entered the space`,3, _tl);
