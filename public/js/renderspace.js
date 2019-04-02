@@ -1,6 +1,6 @@
 'use strict';
 
-document.getElementById('spaceTitleId').textContent=`Project K5. Room: ${roomId}, user: ${userNick}`;
+//document.getElementById('spaceTitleId').textContent=`Project K5. Room: ${roomId}, user: ${userNick}`;
 
 
 function videoTest(){

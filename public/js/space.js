@@ -1,15 +1,9 @@
 'use strict';
 
+//Defenition section:
 const _tl = 5;
 let socket = io();
 
-function makeId(length) {
-    var text = "";
-    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    for (var i = 0; i < length; i++)
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    return text;
-}
 
 let roomId = localStorage.getItem('roomId');
 if (roomId==='') {
@@ -21,7 +15,30 @@ if (userNick==='') {
     userNick = makeId(8);
 }
 let isOwner;
+let isChannelReady=false;
 let mates = new Array();
+
+let localConstraints = {
+    video: true,
+    audio: true
+}
+
+let peerConfig = null;
+
+let localStream;
+let localVideoElement = document.getElementById('localVideo');
+
+//End definition section
+
+//MAIN:
+socket.emit('_sigEnterRoom', roomId, userNick);
+getUserMedia(localConstraints);
+
+
+
+//END MAIN
+
+
 
 //Web elements handlers:
 function btnSendOnClick(){
@@ -43,14 +60,30 @@ socket.on('_sigJoined', (user) => {
         console.log(`User ${user.nick} had joined room ${user.room}. Is owner = ${user.isOwner}`);
     }
     isOwner = user.isOwner;
+    addUserToList(user.nick, isOwner);
     mates.push(user);
     console.log(`In room:`);
     console.log(mates);
 });
 //End socket events handlers:
 
-socket.emit('_sigEnterRoom', roomId, userNick);
 
+
+//Main functions:
+function getUserMedia (constraints){
+    navigator.mediaDevices.getUserMedia(constraints)
+    .then((stream)=>{
+        localStream = stream;
+        isChannelReady = true;
+        localVideoElement.srcObject=stream;
+        socket.emit('_sigGotMedia', roomId);
+    })
+    .catch ((err)=>{
+        console.log(err);
+    });
+}
+
+//End main functions
 
 //Tools:
 function timeStamp (){
@@ -63,6 +96,13 @@ function timeStampShort (){
     return `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
 }
 
+function makeId(length) {
+    var text = "";
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (var i = 0; i < length; i++)
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    return text;
+}
 //End tools
 
 /*function doTrace (message, level, traceLevel){

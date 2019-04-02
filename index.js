@@ -104,6 +104,11 @@ io.on('connection', function(socket){
         
     });
 
+    socket.on('_sigGotMedia',(roomId)=>{
+        tools.doTrace(`RX: _sigGotMedia from ${socket.id} in ${roomId}`,4, _tl);
+        io.in(roomId).emit('_sigGotMedia', socket.id);
+    });
+
     socket.on('_sigMessage', (msg)=>{
         console.log(`_sigMessage ${msg.type}`);
         io.emit('_sigMessage', msg);
