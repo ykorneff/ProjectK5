@@ -17,6 +17,18 @@ function videoTest(){
     });
 }
 
+function addVideoElement(id){
+    let videoElementsArea = document.getElementById('videoElementsArea');
+    let videoElement = document.createElement("VIDEO");
+    videoElement.id=`vel${id}`;
+    videoElement.className = 'videoElements';
+    videoElement.autoplay = true;
+    videoElement.muted = false;
+    videoElementsArea.appendChild(videoElement);
+    console.log(`added video element`);
+    return videoElement;
+}
+
 function addChatMessage(text, user, time, messageClass){
     document.getElementById('textToSend').focus();
     let chatArea = document.getElementById('chatArea');
