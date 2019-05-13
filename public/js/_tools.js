@@ -19,6 +19,7 @@ function timeStamp (){
     let now = new Date(Date.now());
     return `<${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}>`;
 }
+
 function doTrace (message, level, traceLevel){
     if (level <= traceLevel) {
         if (typeof message === 'object'){
@@ -30,3 +31,10 @@ function doTrace (message, level, traceLevel){
     }
 }
     
+function makeId(length) {
+    var text = "";
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (var i = 0; i < length; i++)
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    return text;
+}

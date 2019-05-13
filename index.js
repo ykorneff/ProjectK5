@@ -74,7 +74,32 @@ io.on('connection', function(socket){
 
     socket.on('disconnect', function(){
         tools.doTrace(`User disconnected`, 3 , _tl);
-        tools.doTrace(`Socket ID = ${socket.id}`, 4, _tl);
+        console.log(socket.id);
+        //console.log(users);
+        Array.prototype.findByValueOfObject = function(key, value) {
+            return this.filter(function(item) {
+              return (item[key] === value);
+            });
+          }
+        //console.log(ttt);        
+        let disconnectedUser = users.findByValueOfObject('id', socket.id);
+        //console.log(disconnectedUser[0].room);
+        socket.to(`${disconnectedUser[0].room}`).emit('_sigDisconnected', disconnectedUser[0]);
+        // DELETE USER from users[]
+        console.log(users);
+        console.log();
+        users.splice(users.indexOf(disconnectedUser[0]),1);
+        console.log(users);
+        //let currentRoom = users.find(item => item.nick === socket.id).room;
+        //console.log(users.find(item => item.nick === `${socket.id}`));
+
+        //tools.doTrace(`Socket ID = ${socket.id} from room ${currentRoom}`, 4, _tl);
+    });
+
+    socket.on('_chatMessage', (roomId,user,msg)=>{
+
+        tools.doTrace(`Message:\nroom: ${roomId}\nfrom: ${user}\ntext: ${msg}`, 5, _tl);
+        socket.to(roomId).emit('_chatMessage', roomId, user, msg);
     });
 
     socket.on('_sigEnterRoom', (roomId, userNick) => {
@@ -95,25 +120,79 @@ io.on('connection', function(socket){
         if (matesInRoom === 1) {
             user.isOwner = true;
         }
-        //users.push(user);
+        
         room.id = roomId;
         room.mates = matesInRoom;
         //rooms.push(room);
         //socket.emit('_sigJoined', user);
-        io.in(roomId).emit('_sigJoined',user);
+        //io.in(roomId).emit('_sigJoined',user);
+        io.to(`${user.id}`).emit('_sigJoined', 1, user, users);
+        socket.to(`${roomId}`).emit('_sigJoined', 2, user, null);
+        users.push(user);
+    });
+
+
+    socket.on('_sigDoCall', (sigId , roomId, sessionDescription, type, dstUser) => {
+        tools.doTrace(`RX<- _sigDoCall.${type}::${sigId} from ${socket.id} to ${dstUser} with SDP: \n`, 4, _tl);
+        console.log(sessionDescription);
+        let newSigId = tools.makeId(8);
+        tools.doTrace(`TX-> _sigDoCall.2::${newSigId} from ${socket.id} to ${dstUser}n`, 4, _tl);
+        if (dstUser=='__BC__') {
+            socket.to(roomId).emit('_sigDoCall', newSigId, roomId, sessionDescription, 4, socket.id);
+        } else {
+            io.to(dstUser).emit('_sigDoCall', newSigId, roomId, sessionDescription, 2, socket.id);
+        }
+        socket.emit('_sigInProgress', sigId)
         
     });
 
-    socket.on('_sigGotMedia',(roomId)=>{
-        tools.doTrace(`RX: _sigGotMedia from ${socket.id} in ${roomId}`,4, _tl);
-        io.in(roomId).emit('_sigGotMedia', socket.id);
+
+    socket.on('_sigAnswer', (sigId, roomId, sessionDescription, type, dstUser) => {
+        tools.doTrace(`RX<- _sigAnwer.${type}::${sigId} from ${socket.id} to ${dstUser} with SDP: \n`, 4, _tl);
+        console.log(sessionDescription);
+        let newSigId = tools.makeId(8);
+        tools.doTrace(`TX-> _sigAnswer.2::${newSigId} from ${socket.id} to ${dstUser}n`, 4, _tl);
+        io.to(dstUser).emit('_sigAnswer', newSigId, roomId, sessionDescription, 2, socket.id);
+        //socket.emit('_sigInProgress', sigId)
+    });
+    //'_sigMessage', sigId , roomId, sessionDescription, 1, dstUser)
+
+
+/* forget for a while
+    socket.on('_sigGotMedia', (sigId, roomId, userName, sigMessageType) => {
+        tools.doTrace(`RX-> _sigGotMedia.${sigMessageType}::${sigId} from ${socket.id}/${userName} in room:${roomId};`,4, _tl);
+        switch (sigMessageType){
+            case 1:
+                io.to(socket.id).emit('_sigAck', sigId, '_sigGotMedia');
+                socket.in(roomId).emit('_sigGotMedia', tools.makeId(8), roomId, userName, 2) //
+            break;
+        }
     });
 
-    socket.on('_sigMessage', (msg)=>{
-        console.log(`_sigMessage ${msg.type}`);
-        io.emit('_sigMessage', msg);
-    });
-
+*/
     
+/* 
+//old attempt     
+    socket.on('_sigGotMedia',(roomId, user, extParam)=>{
+        tools.doTrace(`RX: _sigGotMedia::${extParam} from ${socket.id} in ${roomId}`,4, _tl);
+        switch(extParam) {
+            case 1: 
+                io.to(socket.id).emit('_sigAck',1);
+                socket.in(roomId).emit('_sigGotMedia', roomId, user, 2);// 2=broadcast to room mates that someone has media to stream
+            break;
+            
+        }
+    });
+
+    socket.on('_sigMessage', (roomId, sdp)=>{
+        console.log(`_sigMessage ${sdp.type}`);
+        io.in(roomId).emit('_sigMessage', roomId, sdp);
+    });
+//end
+ */
+
+//new attempt
+
+//end
 });
 

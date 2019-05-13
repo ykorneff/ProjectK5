@@ -64,6 +64,7 @@ function addUserToList(user, isOwner){
 
 }
 
+
 function removeUserFromList(user) {
     let userListElement = document.getElementById('userList');
     let userItem = document.getElementById(`uItem${user}`);
