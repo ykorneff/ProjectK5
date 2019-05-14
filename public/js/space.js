@@ -177,8 +177,8 @@ socket.on('_sigDoCall', (sigId, roomId, sessionDescription, type, srcUser)=>{
     }
     if (sdpType === 'offer'){
         console.log('$$$0001 do answer to ', srcUser);
-        console.log(peerConnections.get(srcUser),`\n`,peerConnections.get(srcUser).signalingState)
-        doP2Panswer(peerConnections.get(srcUser),srcUser,sigId)
+        console.log(peerConnections.get(srcUser),`\n`,peerConnections.get(srcUser).signalingState);
+        doP2Panswer(peerConnections.get(srcUser),srcUser,sigId);
     }
 });
 
@@ -189,7 +189,7 @@ socket.on('_sigAnswer',  (sigId, roomId, sessionDescription, type, srcUser)=>{
     if (sdpType==='answer'){
         console.log('$$$0002 answer received');
         peerConnections.get(srcUser).setRemoteDescription(new RTCSessionDescription(sessionDescription));
-    } else if (msg.type==='candidate'){
+    } else if (sdpType==='candidate'){
         var candidate = new RTCIceCandidate({
             sdpMLineIndex: sessionDescription.lable,
             candidate: sessionDescription.candidate
@@ -199,10 +199,30 @@ socket.on('_sigAnswer',  (sigId, roomId, sessionDescription, type, srcUser)=>{
     } 
 });
 
+socket.on('_sigCandidate', (sigId,msg,type,srcUser) =>{
+    console.log(`RX<- _sigCandidate.${type}::${sigId} from ${srcUser}`);   
+    //console.log(msg); 
+    let param = {
+        sdpMLineIndex: msg.label,
+        candidate: msg.candidate
+    };
+    //console.log(param);
+    var candidate = new RTCIceCandidate(param);
+    console.log(candidate);
+    try {
+        peerConnections.get(srcUser).addIceCandidate(candidate);
+    }
+    catch(err){
+        console.log(err);
+    };
+});
+
 socket.on('_sigAck', (sigId, message) =>{
     console.log(`RX-> _sigAck on ${message}::${sigId}`);
     startAttempt();/// !!! check check check!!!
 });
+
+
 
 socket.on('_sigGotMedia', (sigId, roomId, userName, sigMessageType) => {
 console.log(`RX-> _sigGotMedia.${sigMessageType}::${sigId} from ${socket.id}/${userName} in room:${roomId};`);
@@ -262,7 +282,7 @@ function getUserMedia (constraints){
         //socket.emit('_sigGotMedia', sigId, roomId, user.nick, 1); //1=user init video 
         mates.forEach( mate => {
             console.log(`create peer for ${mate.nick}/${mate.id}`);
-            peerConnections.set(mate.id, createPeerConnection(pcConfig))
+            peerConnections.set(mate.id, createPeerConnection(pcConfig,mate.id));
             peerConnections.get(mate.id).addStream(localStream);
             console.log(peerConnections.get(mate.id));
             doP2Pcall(peerConnections.get(mate.id));
@@ -297,11 +317,12 @@ function startAttempt(){
     }
 }
 
-function createPeerConnection(pcConfig) {
+function createPeerConnection(pcConfig, dstUser) {
     try{
         let pc = new RTCPeerConnection(pcConfig);
         pc.ondatachannel = handleChannelCallback;
-        pc.onicecandidate = handleIceCandidate;
+        //pc.onicecandidate = handleIceCandidate;
+        pc.addEventListener('icecandidate', (event)=>handleIceCandidate(event,dstUser));
         //pc.onaddstream = handleRemoteStreamAdded; //
         pc.ontrack = handleRemoteStreamAdded;
         pc.onremovestream = handleRemoteStreamRemoved;
@@ -380,16 +401,20 @@ function handleDataChannelClose (event) {
     console.log(`dataChannel.OnClose ${JSON.stringify(event)}`);
 }
 
-function handleIceCandidate(event) {
-    console.log('icecandidate event: ', event);
+function handleIceCandidate(event, dstUser) {
+    console.log(`icecandidate event for ${dstUser}: `, event);
+
     if (event.candidate) {
+        //console.log(event);
         //socket.emit('_sigMessage',{
-        socket.emit('_sigCandidate',dstUser,{ //вот тут видимо собака порылась. надо придумать как в event запихнуть dstUser
+        let sigId = makeId(8)
+        console.log(`TX-> _sigCandidate.1::${sigId} from ${socket.id} to ${dstUser}`);
+        socket.emit('_sigCandidate', sigId,{ //вот тут видимо собака порылась. надо придумать как в event запихнуть dstUser
         type: 'candidate',
         label: event.candidate.sdpMLineIndex,
         id: event.candidate.sdpMid,
         candidate: event.candidate.candidate
-      });
+      }, dstUser, 1);
     } else {
         console.log('End of candidates.');
     }
@@ -436,7 +461,7 @@ function doP2Panswer(peer, dstUser, sigId){
     peer.createAnswer().
     then((sessionDescription)=> {
         peer.setLocalDescription(sessionDescription);
-        console.log();
+        console.log(sessionDescription);
         socket.emit('_sigAnswer', sigId, roomId, sessionDescription, 1, dstUser);
     }).
     catch ((err)=>{

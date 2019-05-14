@@ -155,6 +155,11 @@ io.on('connection', function(socket){
         io.to(dstUser).emit('_sigAnswer', newSigId, roomId, sessionDescription, 2, socket.id);
         //socket.emit('_sigInProgress', sigId)
     });
+
+    socket.on('_sigCandidate', (sigId, msg, dstUser, type)=> {
+        tools.doTrace(`RX<- _sigCandidate.${type}::${sigId} from ${socket.id} to ${dstUser}\n\n`+msg, 4, _tl);
+        io.to(dstUser).emit('_sigCandidate', tools.makeId(8), msg, 2, socket.id);
+    });
     //'_sigMessage', sigId , roomId, sessionDescription, 1, dstUser)
 
 
