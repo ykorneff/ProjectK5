@@ -84,7 +84,11 @@ io.on('connection', function(socket){
         //console.log(ttt);        
         let disconnectedUser = users.findByValueOfObject('id', socket.id);
         //console.log(disconnectedUser[0].room);
-        socket.to(`${disconnectedUser[0].room}`).emit('_sigDisconnected', disconnectedUser[0]);
+        //socket.to(`${disconnectedUser[0].room}`).emit('_sigDisconnected', disconnectedUser[0]);
+        let sigId = tools.makeId(10);
+        //console.log('dd: ', disconnectedUser[0].room);
+        socket.to(`${disconnectedUser[0].room}`).emit('_sigDisconnected', sigId, 'SRV', 'ALL', 2, {disconnectedUser: disconnectedUser[0]});
+        console.log(`${tools.timeStamp()}||TX: SRV -> ALL _sigDisconnected::${sigId}.2`);
         // DELETE USER from users[]
         console.log(users);
         console.log();
@@ -96,15 +100,20 @@ io.on('connection', function(socket){
         //tools.doTrace(`Socket ID = ${socket.id} from room ${currentRoom}`, 4, _tl);
     });
 
-    socket.on('_chatMessage', (roomId,user,msg)=>{
-
-        tools.doTrace(`Message:\nroom: ${roomId}\nfrom: ${user}\ntext: ${msg}`, 5, _tl);
-        socket.to(roomId).emit('_chatMessage', roomId, user, msg);
+    //socket.on('_chatMessage', (roomId,user,msg)=>{
+    socket.on('_chatMessage',  (sigId, from, to, type, data) => {
+        console.log(`${tools.timeStamp()}||RX: _chatMessage${from} -> ${to} _sigEnter::${sigId}.${type}:`);
+        console.log(`${data.userNick}:\n`+data.text);
+        //tools.doTrace(`Message:\nroom: ${roomId}\nfrom: ${user}\ntext: ${msg}`, 5, _tl);
+        socket.to(data.roomId).emit('_chatMessage', sigId, from,  to, 2 , data);
+        //socket.to(roomId).emit('_chatMessage', roomId, user, msg);
     });
 
-    socket.on('_sigEnterRoom', (roomId, userNick) => {
-        tools.doTrace(`User "${userNick}" has entered room "${roomId}"`, 3, _tl)
-        socket.join(roomId);
+    //socket.on('_sigEnterRoom', (roomId, userNick) => {
+    socket.on('_sigEnter', (sigId, from, to, type, data) => {
+        //tools.doTrace(`User "${userNick}" has entered room "${roomId}"`, 3, _tl)
+        console.log(`${tools.timeStamp()}||RX: ${socket.id} -> ${to} _sigEnter::${sigId}.${type}`);
+        socket.join(data.roomId);
         let user = {
             id: '',
             nick: '',
@@ -112,26 +121,35 @@ io.on('connection', function(socket){
             isOwner: false
         };
         user.id=socket.id;
-        user.nick = userNick;
-        user.room = roomId;
-        var matesInRoom = io.sockets.adapter.rooms[roomId].length;   
+        user.nick = data.userNick;
+        user.room = data.roomId;
+        var matesInRoom = io.sockets.adapter.rooms[data.roomId].length;   
 //        console.log(io.sockets.adapter.rooms[roomId].sockets);
-        tools.doTrace(`There are ${matesInRoom} users in the room "${roomId}"`, 4, _tl);
+        //tools.doTrace(`There are ${matesInRoom} users in the room "${data.roomId}"`, 4, _tl);
+        console.log(`${tools.timeStamp()}||SI: There are ${matesInRoom} users in the room "${data.roomId}"`)
         if (matesInRoom === 1) {
             user.isOwner = true;
         }
         
-        room.id = roomId;
+        room.id = data.roomId;
         room.mates = matesInRoom;
         //rooms.push(room);
         //socket.emit('_sigJoined', user);
         //io.in(roomId).emit('_sigJoined',user);
-        io.to(`${user.id}`).emit('_sigJoined', 1, user, users);
-        socket.to(`${roomId}`).emit('_sigJoined', 2, user, null);
+        //io.to(`${user.id}`).emit('_sigJoined', 1, user, users);
+        io.to(user.id).emit('_sigJoined',sigId, socket.id, 'ALL', 2, {user: user, users: users});
+        //socket.to(`${data.roomId}`).emit('_sigJoined', 2, user, null);
+        socket.to(data.roomId).emit('_sigJoined', sigId, socket.id, 'ALL', 4, {user: user, users:null});
         users.push(user);
     });
 
+    socket.on('_sigCalling', (sigId, from, to, type, data) => {
+        console.log(`${tools.timeStamp()}||RX: ${from} -> ${to} _sigCalling::${sigId}.${type}//${data.type} with SDP:\n`, data);
+        io.to(to).emit('_sigCalling', sigId, socket.id, to, 2, data);
+        console.log(`${tools.timeStamp()}||TX: ${from} -> ${to} _sigCalling::${sigId}.2//${data.type}`);
+    });
 
+/*
     socket.on('_sigDoCall', (sigId , roomId, sessionDescription, type, dstUser) => {
         tools.doTrace(`RX<- _sigDoCall.${type}::${sigId} from ${socket.id} to ${dstUser} with SDP: \n`, 4, _tl);
         console.log(sessionDescription);
@@ -160,6 +178,8 @@ io.on('connection', function(socket){
         tools.doTrace(`RX<- _sigCandidate.${type}::${sigId} from ${socket.id} to ${dstUser}\n\n`+msg, 4, _tl);
         io.to(dstUser).emit('_sigCandidate', tools.makeId(8), msg, 2, socket.id);
     });
+
+*/
     //'_sigMessage', sigId , roomId, sessionDescription, 1, dstUser)
 
 

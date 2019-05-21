@@ -43,7 +43,8 @@ let receiveOnly = {
 let peerConnection;
 
 let localStream;
-let remoteStreams = new Array();
+//let remoteStreams = new Array();
+let remoteStreams = new Map();
 let localVideoElement = document.getElementById('localVideo');
 
 let peerConnections = new Map();
@@ -58,11 +59,15 @@ Array.prototype.findByValueOfObject = function(key, value) {
 }
 
 //MAIN:
-socket.emit('_sigEnterRoom', roomId, userNick);
+
+{
+    //socket.emit('_sigEnterRoom', roomId, userNick);
+    let sigId = makeId(10);
+    socket.emit('_sigEnter', sigId, socket.id, 'ALL', 1,{roomId: roomId, userNick: userNick});
+    console.log(`TX: ${socket.id} -> ALL _sigEnter::${sigId}.1 `);
+    sigId = undefined;
+}
 //getUserMedia(localConstraints);
-
-
-
 //END MAIN
 
 
@@ -73,7 +78,9 @@ function btnSendOnClick(){
     let text = textToSendElement.value;
     if (text!=='') {
         addChatMessage(text, userNick, timeStampShort(), 'local');
-        socket.emit('_chatMessage', roomId, userNick, text);
+        //socket.emit('_chatMessage', roomId, userNick, text);
+        let sigId = makeId(10);
+        socket.emit('_chatMessage', sigId, socket.id, 'ALL', 1, {roomId: roomId, userNick:userNick, text:text});
         text = '';
         textToSendElement.value = '';
         
@@ -84,53 +91,138 @@ function btnSendOnClick(){
 function initVideoOnClick(){
     getUserMedia(localConstraints);
 }
+
+function getUserMedia(constraints) {
+    console.log(`${timeStamp()}||CI: Get local user media...\ntrying...`);
+    navigator.mediaDevices.getUserMedia(constraints).
+    then((stream)=>{
+        localStream=stream;
+        localVideoElement = document.getElementById('localVideo');
+        localVideoElement.srcObject=localStream;
+        console.log(`${timeStamp()}||CI: ...complete with localstram: \n`, localStream);
+//        remoteVideoElement = document.getElementById('remoteVideo');
+//        socket.emit('_sigGotMedia', roomId);
+        console.log(`${timeStamp()}||CI: Starting p2p calls...`);
+        peerConnections.forEach((element)=>{
+            console.log('dd', element);
+            console.log(`${timeStamp()}||CI: Starting call. ${socket.id} is calling ${element.userId}...`);
+            startPeerCall(element.userId, element.peer);
+        });
+        
+    }).
+    catch((err)=>{
+        console.log(`${timeStamp()}||CI: ...failed with the error: \n`, err);
+    });
+}
+
+function startPeerCall(dstUser, peer) {
+    console.log(`${timeStamp()}||CI: Add localstream to peer for ${dstUser}...`);
+    //peer.addTrack(localStream);
+    for (const track of localStream.getTracks()) {
+        peer.addTrack(track,localStream);
+    }
+    console.log(`${timeStamp()}||CI: Creating offer for ${dstUser}... \ntrying...`);
+    peer.createOffer(). //вот тут может понадобиться ставить параметры для sdp если нет локального потока
+    then((sessionDescription) => {
+        peer.setLocalDescription(sessionDescription);
+        console.log(`${timeStamp()}||CI: Session description setting for ${dstUser}: \n`, sessionDescription);
+        let sigId = makeId(10);
+        console.log(`${timeStamp()}||TX: ${socket.id} -> ${dstUser} _sigCalling::${sigId}.1`);
+        socket.emit('_sigCalling', sigId, socket.id, dstUser, 1, sessionDescription);
+    })
+    
+    //doCall(dstUser);
+}
+
+function answerPeerCall(dstUser, peer){
+    console.log(`${timeStamp()}||CI: Answering on call from ${dstUser}...`);
+    let data;
+    data = {
+        offerToReceiveAudio: false, 
+        offerToReceiveVideo: false
+    }
+    //peer.createAnswer(data).
+    peer.createAnswer().
+    then ((sessionDescription) => {
+        peer.setLocalDescription(sessionDescription);
+        console.log('peerconn answ:', peer.localDescription);
+        let sigId = makeId(10);
+        console.log(`${timeStamp()}||TX: ${socket.id} -> ${dstUser} _sigCalling::${sigId}.3`);
+        socket.emit('_sigCalling', sigId, socket.id, dstUser, 3, sessionDescription);
+    }).
+    catch((err) => {
+        console.log(`${timeStamp()}||CI: Failed answer on call from ${dstUser} \n`, err);
+    })
+}
+
+function createPeerConnection(pcConfig, dstUser) {
+    try{
+        let pc = new RTCPeerConnection(pcConfig);
+        //pc.ondatachannel = handleChannelCallback;
+        pc.addEventListener('track', (event) => handleRemoteStreamAdded(event, dstUser));
+        pc.addEventListener('icecandidate', (event)=>handleIceCandidate(event, dstUser));
+        pc.addEventListener('removetrack', (event) => handleRemoteStreamRemoved(event, dstUser));
+        //console.log('created peer', pc);
+        return pc;
+    }
+    catch(err){
+        console.log('Failed to create PeerConnection, exception: ' + err.message);
+        return;
+    }
+}
+
 //End web elements handlers
 
 //Socket events handlers:
-socket.on('_sigJoined', (extCode, user, users) => {
-    switch (extCode) {
-        case 1:
-            console.log('1:');
-            if (user.isOwner){
-                console.log(`User ${userNick} has created room ${user.room}. Is owner = ${user.isOwner}`);
+//socket.on('_sigJoined', (extCode, user, users) => {
+socket.on('_sigJoined', (sigId, from, to, type, data) => {
+    console.log('dd: ',data);
+    switch (type) {
+        case 2:
+            console.log('2:');
+            if (data.user.isOwner){
+                console.log(`User ${userNick}/${from} has created room ${data.user.room}. Is owner = ${data.user.isOwner}`);
             } else {
-                console.log(`User ${user.nick} had joined room ${user.room}. Is owner = ${user.isOwner}`);
-                isChannelReady = true;
-                isReady = true;
+                console.log(`User ${userNick}//${from} had joined room ${data.user.room}. Is owner = ${data.user.isOwner}`);
+                //isChannelReady = true;
+                //isReady = true;
 
             }
-            isOwner = user.isOwner;
-            addUserToList(user.nick, isOwner);
+            isOwner = data.user.isOwner;
+            addUserToList(data.user.nick, isOwner);
             //mates.push(user);
-            users.forEach(element => {
+            console.log(`dd: `,data.users);
+            data.users.forEach(element => {
                 addUserToList(element.nick, element.isOwner);
                 mates.push(element);
-                console.log(`dd: ${element.id}//${element.nick}`);
-                //peerConnections.set(element.id, createPeerConnection(pcConfig));
+                console.log(`dd2: ${element.id}//${element.nick}`);
+                //peerConnections.set(element.id, createPeerConnection(pcConfig, element.id));
+                peerConnections.set(element.id, {userId: element.id, peer: createPeerConnection(pcConfig, element.id)});
                 //dataChannels.set(element.id, createPeerDataChannel(peerConnections.get(element.id)));
-                //console.log(`peer for ${element.id}: \n`, peerConnections.get(element.id));
+                console.log(`peer for ${element.id}: \n`, peerConnections.get(element.id).peer);
                 //console.log(`peerDC for ${element.id}: \n`, dataChannels.get(element.id));
             });
             //console.log(`In room:`);
             //console.log(mates);
         break;
-        case 2:
-            console.log('2:');
-            addUserToList(user.nick, isOwner);
-            console.log(`joined:\n`,user);
-            //peerConnections.set(user.id, createPeerConnection(pcConfig));
+        case 4:
+            console.log('4:');
+            addUserToList(data.user.nick, data.user.isOwner);
+            console.log(`joined:\n`,data.user);
+            //peerConnections.set(data.user.id, createPeerConnection(pcConfig, data.user.id));
+            peerConnections.set(data.user.id, {userId: data.user.id, peer: createPeerConnection(pcConfig, data.user.id)});
             //dataChannels.set(user.id, createPeerDataChannel(user.id, peerConnections.get('user.id')));
-            //console.log(`peer for ${user.id}: \n`, peerConnections.get(user.id));
+            console.log(`peer for ${data.user.id}: \n`, peerConnections.get(data.user.id).peer);
             //console.log(`peerDC for ${user.id}: \n`, dataChannels.get('user.id'));
-            mates.push(user);
-
+            mates.push(data.user);
+            console.log('dd4: ', mates)
             if (localStream!==undefined) {
                 console.log(localStream);
-                console.log(`create peer for ${user.nick}/${user.id}`);
-                peerConnections.set(user.id, createPeerConnection(pcConfig))
-                peerConnections.get(user.id).addStream(localStream);
-                console.log(peerConnections.get(user.id));
-                doP2Pcall(peerConnections.get(user.id));
+                console.log(`create peer for ${data.user.nick}/${data.user.id}`);
+                //peerConnections.set(user.id, createPeerConnection(pcConfig))
+                //peerConnections.get(user.id).addStream(localStream);
+                //console.log(peerConnections.get(user.id));
+                //doP2Pcall(peerConnections.get(user.id));
             }
             //console.log(mates);
             //console.log(`dd: ${user.id}//${user.nick}\n `,peerConnections.get(user.id));
@@ -143,345 +235,100 @@ socket.on('_sigJoined', (extCode, user, users) => {
 
 });
 
-socket.on('_chatMessage', (roomId,user,msg) =>{
-    console.log(`new message: ${user}->${msg}`);
-    addChatMessage(msg, user, timeStampShort(), 'remote');
+//socket.on('_chatMessage', (roomId,user,msg) =>{
+socket.on('_chatMessage',  (sigId, from, to, type, data) => {
+    //console.log(`new message: ${user}->${msg}`);
+    console.log(`${timeStamp()}||RX: _chatMessage${from} -> ${to} _sigEnter::${sigId}.${type}:`);
+    console.log(`${data.userNick}:\n`+data.text);
+    addChatMessage(data.text, data.userNick, timeStampShort(), 'remote');
 });
 
-socket.on('_sigDisconnected', (disconnectedUser) => {
-    console.log(disconnectedUser);
-    tempuser = disconnectedUser;
+//socket.on('_sigDisconnected', (disconnectedUser) => {
+socket.on('_sigDisconnected', (sigId, from, to, type, data) => {
+    console.log(`${timeStamp()}||RX: ${from} -> ${to} _sigDisconnected::${sigId}.${type}`);
+    //console.log(data.disconnectedUser);
+
+    tempuser = data.disconnectedUser;
     //mates.indexOf(mates.findByValueOfObject('id', tempuser.id)[0]);
     //mates.splice(mates.findIndex(mates.indexOf(mates.findByValueOfObject('id', tempuser.id)[0])),1);
     
     mates.splice(mates.indexOf(mates.findByValueOfObject('id', tempuser.id)[0]),1);
-    removeUserFromList(disconnectedUser.nick);
+    removeUserFromList(tempuser.nick);
     peerConnections.delete(tempuser.id);
     //dataChannels.delete(tempuser.id);
-    console.log(`User ${disconnectedUser.nick} left the room ${disconnectedUser.room}`);
+    console.log(`User ${data.disconnectedUser.nick} left the room ${data.disconnectedUser.room}`);
     // ADD notification to chat
 });
 
-socket.on ('_sigInProgress', (sigId) =>{
-    console.log(`RX<- _sigInProgress::${sigId}`);
-});
-
-socket.on('_sigDoCall', (sigId, roomId, sessionDescription, type, srcUser)=>{
-    console.log(`RX<- _sigDoCall.${type}::${sigId} from ${srcUser} with SDP: \n`);    
-    console.log(sessionDescription);
-    let sdpType = sessionDescription.type;
-    if (localStream==undefined){
-        peerConnections.set(srcUser, createPeerConnection(receiveOnly));
-    } else {
-        peerConnections.set(srcUser, createPeerConnection(pcConfig));
+socket.on('_sigCalling', (sigId, from, to, type, data) => {
+    console.log(`${timeStamp()}||RX: ${from} -> ${to} _sigCalling::${sigId}.${type}//${data.type} with SDP:\n`, data);
+    //io.to(to).emit('_sigCalling', sigId, socket.id, dstUser, 2, data);
+    //console.log(`${tools.timeStamp()}||TX: ${from} -> ${to} _sigCalling::${sigId}.2//${data.type}`);
+    switch (data.type){
+        case 'offer':
+            console.log(`${timeStamp()}||CI: Received offer from ${from}... \nanswering...`);
+            //а что если нет локального медиа?
+            console.log(`${timeStamp()}||CI: Create local SDP...`);
+            peerConnections.get(from).peer.setRemoteDescription(new RTCSessionDescription(data));
+            answerPeerCall(from, peerConnections.get(from).peer);
+            //startPeerCall(element.userId, element.peer);
+        break;
+        case 'answer':
+            console.log(`${timeStamp()}||CI: Received answer from ${from}`);
+            peerConnections.get(from).peer.setRemoteDescription(new RTCSessionDescription(data));
+        break;
+        case 'candidate':
+            console.log(`${timeStamp()}||CI: Received candidate from ${from}`);
+            let candidate = new RTCIceCandidate({
+                sdpMLineIndex: data.label,
+                candidate: data.candidate
+            });
+            peerConnections.get(from).peer.addIceCandidate(candidate);
+        break;
+        default:
+        break;
     }
-    if (sdpType === 'offer'){
-        console.log('$$$0001 do answer to ', srcUser);
-        console.log(peerConnections.get(srcUser),`\n`,peerConnections.get(srcUser).signalingState);
-        doP2Panswer(peerConnections.get(srcUser),srcUser,sigId);
-    }
-});
-
-socket.on('_sigAnswer',  (sigId, roomId, sessionDescription, type, srcUser)=>{
-    console.log(`RX<- _sigAnswer.${type}::${sigId} from ${srcUser} with SDP: \n`);    
-    console.log(sessionDescription);
-    let sdpType=sessionDescription.type;
-    if (sdpType==='answer'){
-        console.log('$$$0002 answer received');
-        peerConnections.get(srcUser).setRemoteDescription(new RTCSessionDescription(sessionDescription));
-    } else if (sdpType==='candidate'){
-        var candidate = new RTCIceCandidate({
-            sdpMLineIndex: sessionDescription.lable,
-            candidate: sessionDescription.candidate
-        });
-        console.log('$$$0003 candidate')
-        peerConnections.get(srcUser).addIceCandidate(candidate);
-    } 
-});
-
-socket.on('_sigCandidate', (sigId,msg,type,srcUser) =>{
-    console.log(`RX<- _sigCandidate.${type}::${sigId} from ${srcUser}`);   
-    //console.log(msg); 
-    let param = {
-        sdpMLineIndex: msg.label,
-        candidate: msg.candidate
-    };
-    //console.log(param);
-    var candidate = new RTCIceCandidate(param);
-    console.log(candidate);
-    try {
-        peerConnections.get(srcUser).addIceCandidate(candidate);
-    }
-    catch(err){
-        console.log(err);
-    };
-});
-
-socket.on('_sigAck', (sigId, message) =>{
-    console.log(`RX-> _sigAck on ${message}::${sigId}`);
-    startAttempt();/// !!! check check check!!!
 });
 
 
 
-socket.on('_sigGotMedia', (sigId, roomId, userName, sigMessageType) => {
-console.log(`RX-> _sigGotMedia.${sigMessageType}::${sigId} from ${socket.id}/${userName} in room:${roomId};`);
-switch (sigMessageType) {
-    case 1:
-    break;
-    case 2:
-        //others
-    break;
-}
-});
-/*
-//old attempt
-socket.on('_sigGotMedia', (remoteSocketId)=> {
-    console.log(`Socket ${remoteSocketId} got media`);
-    startAttempt();
-});
-
-socket.on('_sigAck', (extParam) => {
-    console.log(`Socket ${socket.id} got ACK on gotMedia`);
-    startAttempt();
-});
-
-socket.on('_sigMessage', (msg)=>{
-    if (msg.type==='offer'){
-        //if(!isOwner && !isStarted){
-            startAttempt();
-        //}
-        console.log('$$#@ 001:');
-        peerConnection.setRemoteDescription(new RTCSessionDescription(msg));
-        makeAnswer();
-    } else if (msg.type==='answer' && isStarted){
-        console.log('$$#@ 002:');
-        peerConnection.setRemoteDescription(new RTCSessionDescription(msg));
-    } else if (msg.type==='candidate' && isStarted){
-        var candidate = new RTCIceCandidate({
-            sdpMLineIndex: msg.lable,
-            candidate: msg.candidate
-        });
-        peerConnection.addIceCandidate(candidate);
-    } 
-});
-//end
-*/
 
 
-//Main functions:
-function getUserMedia (constraints){
-    navigator.mediaDevices.getUserMedia(constraints)
-    .then((stream)=>{
-        localStream = stream;
-        //isChannelReady = true;
-        //isReady=true;
-        localVideoElement.srcObject=stream;
-        let sigId = makeId(8);
-        //console.log(`TX: _sigGotMedia::${sigId}` );
-        //socket.emit('_sigGotMedia', sigId, roomId, user.nick, 1); //1=user init video 
-        mates.forEach( mate => {
-            console.log(`create peer for ${mate.nick}/${mate.id}`);
-            peerConnections.set(mate.id, createPeerConnection(pcConfig,mate.id));
-            peerConnections.get(mate.id).addStream(localStream);
-            console.log(peerConnections.get(mate.id));
-            doP2Pcall(peerConnections.get(mate.id));
-        });
-        
-    })
-    .catch ((err)=>{
-        console.log(err);
-    });
-}
-
-function startStreaming(){
-    console.log(`APP-> creating peer connection`);
-    
-}
-
-function startAttempt(){
-    //console.log(`## startAttempt: started=${isStarted}; ready=${isReady}; localstream=${typeof localStream}`);
-    //if (!isStarted && (typeof localStream !=='undefined') && isReady) {
-    if (!isStarted /*&& (typeof localStream !=='undefined')*/) {
-        console.log(`creating peer connection`);
-        createPeerConnection();
-        peerConnection.addStream(localStream);
-        isStarted=true;
-        //console.log(`isOwner=${isOwner}`);
-        //if (isOwner){
-        if (isStartVideoPressed && !isGotMediaReceived) {
-            makeCall();
-        }
-    } else {
-        console.log('startAttempt: do nothing')
-    }
-}
-
-function createPeerConnection(pcConfig, dstUser) {
-    try{
-        let pc = new RTCPeerConnection(pcConfig);
-        pc.ondatachannel = handleChannelCallback;
-        //pc.onicecandidate = handleIceCandidate;
-        pc.addEventListener('icecandidate', (event)=>handleIceCandidate(event,dstUser));
-        //pc.onaddstream = handleRemoteStreamAdded; //
-        pc.ontrack = handleRemoteStreamAdded;
-        pc.onremovestream = handleRemoteStreamRemoved;
-        //console.log('created peer', pc);
-        return pc;
-    }
-    catch(err){
-        console.log('Failed to create PeerConnection, exception: ' + err.message);
-        return;
-    }
-}
-
-function createPeerDataChannel(name, peer) {
-    try{
-        let dc = peer.createDataChannel(name);
-        dc.onopen = handleDataChannelOpen;
-        dc.onmessage = handleDataChannelMessageReceived;
-        dc.onerror = handleDataChannelError;
-        dc.onclose = handleDataChannelClose;
-        return dc;
-    }
-    catch(err){
-        console.log(`Failed to create DataChannel for ${name}, exception: ` + err.message);
-        return;
-    }
-}
-
-function _createPeerConnection(pcConfig){
-    try {
-        peerConnection = new RTCPeerConnection(pcConfig);
-        peerConnection.ondatachannel = handleChannelCallback;
-        peerConnection.onicecandidate = handleIceCandidate;
-        peerConnection.onaddstream = handleRemoteStreamAdded;
-        peerConnection.onremovestream = handleRemoteStreamRemoved;
-        console.log('Created RTCPeerConnnection');
-        dataChannel = peerConnection.createDataChannel('dataChannelName');
-
-        dataChannel.onopen = handleDataChannelOpen;
-        dataChannel.onmessage = handleDataChannelMessageReceived;
-        dataChannel.onerror = handleDataChannelError;
-        dataChannel.onclose = handleDataChannelClose;
-    }
-    catch (err){
-        console.log('Failed to create PeerConnection, exception: ' + err.message);
-        return;
-    }
-}
-
-function handleChannelCallback (event) {
-    var receiveChannel = event.channel;
-    receiveChannel.onopen = handleDataChannelOpen;
-    receiveChannel.onmessage = handleDataChannelMessageReceived;
-    receiveChannel.onerror = handleDataChannelError;
-    receiveChannel.onclose = handleDataChannelClose;
-}
-
-function handleDataChannelOpen (event) {
-    console.log(`dataChannel.OnOpen ${JSON.stringify(event)}`);
-}
-
-function handleDataChannelMessageReceived (event) {
-    console.log(`dataChannel.OnMessage: ${event.data}`);
-    //var ul = document.getElementById("messages");
-    //var li = document.createElement("li");
-    //li.appendChild(document.createTextNode(event.data));
-    //ul.appendChild(li);
-    //document.getElementById('messages').append($('<li>').text(event.data));
-    //window.scrollTo(0, document.body.scrollHeight);
-}
-
-function handleDataChannelError (error) {
-    console.log(`dataChannel.OnError: ${JSON.stringify(error)}`);
-}
-
-function handleDataChannelClose (event) {
-    console.log(`dataChannel.OnClose ${JSON.stringify(event)}`);
-}
-
+//Event handlers:
 function handleIceCandidate(event, dstUser) {
     console.log(`icecandidate event for ${dstUser}: `, event);
-
     if (event.candidate) {
-        //console.log(event);
+        console.log(`dd: \n` , event);
         //socket.emit('_sigMessage',{
-        let sigId = makeId(8)
-        console.log(`TX-> _sigCandidate.1::${sigId} from ${socket.id} to ${dstUser}`);
-        socket.emit('_sigCandidate', sigId,{ //вот тут видимо собака порылась. надо придумать как в event запихнуть dstUser
-        type: 'candidate',
-        label: event.candidate.sdpMLineIndex,
-        id: event.candidate.sdpMid,
-        candidate: event.candidate.candidate
-      }, dstUser, 1);
+        let sigId = makeId(10)
+        console.log(`${timeStamp()} TX -> _sigCandidate.1::${sigId} from ${socket.id} to ${dstUser}`);
+        socket.emit('_sigCandidate', sigId, socket.id, dstUser, 1, {
+            type: 'candidate',
+            label: event.candidate.sdpMLineIndex,
+            id: event.candidate.sdpMid,
+            candidate: event.candidate.candidate});
     } else {
-        console.log('End of candidates.');
+        console.log('End of candidates.');	
     }
 }
-
-function handleRemoteStreamAdded(event){
-    remoteStreams.push(event.stream); //replace Array with a Map
-    addVideoElement(event.id).srcObject=event.stream;//think about identifying elements and streams!
-    console.log(`Remote stream added ${event.stream.id}`);
+var rstream;
+function handleRemoteStreamAdded(event, dstUser){
+    remoteStreams.set(dstUser, event.stream); 
+    console.log('ddd video: ', dstUser,`\n`,event);
+    //addVideoElement(`${dstUser}::${event.stream.id}`).srcObject=event.stream;
+    //addVideoElement(`${dstUser}::${makeId(4)}`).srcObject=event.stream;  
+    rstream = event.streams[0];
+    console.log('ddd rstream', event.streams[0]);
+    addVideoElement(`vels${dstUser}::${event.streams[0].id}`).srcObject=event.streams[0];  
+    //localVideoElement.srcObject = event.streams[0];
+    //console.log(`Remote stream added ${event.stream.id}`);
+    console.log(`Remote stream added`);
 }
 
-function handleRemoteStreamRemoved(event){
+function handleRemoteStreamRemoved(event, dstUser){
     console.log('Remote stream removed. Event: ', event);
-}
-
-function doP2Pcall(peer, dstUser){
-    peer.createOffer().
-    then((sessionDescription)=>{
-        peer.setLocalDescription(sessionDescription);
-        let sigId = makeId(8);
-        console.log(`TX-> send offer wit SDP for ${dstUser}:`, sessionDescription);
-        socket.emit('_sigDoCall', sigId , roomId, sessionDescription, 1, '__BC__');
-    }).
-    catch((err)=>{
-        console.log(err);
-    })
-}
-
-function _makeCall(){
-    console.log('Sending offer to peer');
-    peerConnection.createOffer().
-    then((sessionDescription)=>{
-        peerConnection.setLocalDescription(sessionDescription);
-        console.log(`set local description send message: \n${sessionDescription}`);
-        socket.emit('_sigMessage', roomId, sessionDescription);
-    }).
-    catch((err)=>{
-        console.log(err.message);
-    });
-}
-
-function doP2Panswer(peer, dstUser, sigId){
-
-    peer.createAnswer().
-    then((sessionDescription)=> {
-        peer.setLocalDescription(sessionDescription);
-        console.log(sessionDescription);
-        socket.emit('_sigAnswer', sigId, roomId, sessionDescription, 1, dstUser);
-    }).
-    catch ((err)=>{
-        console.log(`Error:`,err);
-    });
-}
-
-function makeAnswer(){
-    console.log('Sending answer to peer.');
-
-    peerConnection.createAnswer().
-    then( function (sessionDescription) {
-        peerConnection.setLocalDescription(sessionDescription);
-        console.log('setLocalAndSendMessage sending message', sessionDescription);
-        socket.emit('_sigMessage', sessionDescription);
-    }).
-    catch(function(err){
-        console.log(`Error: ${err}`);
-        
-    });
+    remoteStreams.delete(dstUser);
+    removeVideoElement(`vel${dstUser}::${event.stream.id}`);
 }
 //End main functions
 

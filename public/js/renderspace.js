@@ -29,6 +29,11 @@ function addVideoElement(id){
     return videoElement;
 }
 
+function removeVideoElement(id) {
+    let videoElement = document.getElementById(id);
+    videoElement.remove();
+}
+
 function addChatMessage(text, user, time, messageClass){
     document.getElementById('textToSend').focus();
     let chatArea = document.getElementById('chatArea');
